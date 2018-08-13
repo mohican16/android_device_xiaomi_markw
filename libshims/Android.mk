@@ -18,6 +18,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
+    bionic/bionic_futex.cpp \
     bionic/bionic_time_conversions.cpp \
     bionic/pthread_cond.cpp
 
