@@ -1,6 +1,6 @@
 #! /vendor/bin/sh
 
-# Copyright (c) 2012-2013, 2016-2018, The Linux Foundation. All rights reserved.
+# Copyright (c) 2012-2013, 2016, The Linux Foundation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -26,10 +26,18 @@
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Modified by Yudi Widiyanto (yudiwidiyanto7@gmail.com)
-#
 
 target=`getprop ro.board.platform`
+
+function configure_zram_parameters() {
+    # Zram disk - 512MB size
+    zram_enable=`getprop ro.vendor.qti.config.zram`
+    if [ "$zram_enable" == "true" ]; then
+        echo 536870912 > /sys/block/zram0/disksize
+        mkswap /dev/block/zram0
+        swapon /dev/block/zram0 -p 32758
+    fi
+}
 
 function configure_memory_parameters() {
     # Set Memory paremeters.
@@ -47,6 +55,15 @@ function configure_memory_parameters() {
     # 32 bit will have 53K & 64 bit will have 81K
     #
 
+ProductName=`getprop ro.product.name`
+
+if [ "$ProductName" == "msm8996" ]; then
+      # Enable Adaptive LMK
+      echo 1 > /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk
+      echo 81250 > /sys/module/lowmemorykiller/parameters/vmpressure_file_min
+
+      configure_zram_parameters
+else
     arch_type=`uname -m`
     MemTotalStr=`cat /proc/meminfo | grep MemTotal`
     MemTotal=${MemTotalStr:16:8}
@@ -61,7 +78,6 @@ function configure_memory_parameters() {
     # Normalized ADJ for HOME is 6. Hence multiply by 6
     # ADJ score represented as INT in LMK params, actual score can be in decimal
     # Hence add 6 considering a worst case of 0.9 conversion to INT (0.9*6).
-    # For uLMK + Memcg, this will be set as 6 since adj is zero.
     set_almk_ppr_adj=$(((set_almk_ppr_adj * 6) + 6))
     echo $set_almk_ppr_adj > /sys/module/lowmemorykiller/parameters/adj_max_shift
     echo $set_almk_ppr_adj > /sys/module/process_reclaim/parameters/min_score_adj
@@ -71,21 +87,69 @@ function configure_memory_parameters() {
     echo 70 > /sys/module/process_reclaim/parameters/pressure_max
     echo 30 > /sys/module/process_reclaim/parameters/swap_opt_eff
     echo 0 > /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk
-    echo 50 > /sys/module/process_reclaim/parameters/pressure_min
-    echo 512 > /sys/module/process_reclaim/parameters/per_swap_size
-    echo 81250 > /sys/module/lowmemorykiller/parameters/vmpressure_file_min
-    echo "80" > /proc/sys/vm/overcommit_ratio
-    echo "400" > /proc/sys/vm/vfs_cache_pressure
-    echo "24300" > /proc/sys/vm/extra_free_kbytes
-    echo "128" > /proc/sys/kernel/random/read_wakeup_threshold
-    echo "256" > /proc/sys/kernel/random/write_wakeup_threshold
-    echo "4096" > /proc/sys/vm/min_free_kbytes
-    echo "0" > /proc/sys/vm/oom_kill_allocating_task
-    echo "90" > /proc/sys/vm/dirty_ratio
-    echo "70" > /proc/sys/vm/dirty_background_ratio
-    chmod 666 /sys/module/lowmemorykiller/parameters/minfree
-    chown root /sys/module/lowmemorykiller/parameters/minfree
-    echo "21816,29088,36360,43632,50904,65448" > /sys/module/lowmemorykiller/parameters/minfree
+    if [ "$arch_type" == "aarch64" ] && [ $MemTotal -gt 2097152 ]; then
+        echo 10 > /sys/module/process_reclaim/parameters/pressure_min
+        echo 1024 > /sys/module/process_reclaim/parameters/per_swap_size
+        echo "18432,23040,27648,32256,55296,80640" > /sys/module/lowmemorykiller/parameters/minfree
+        echo 81250 > /sys/module/lowmemorykiller/parameters/vmpressure_file_min
+    elif [ "$arch_type" == "aarch64" ] && [ $MemTotal -gt 1048576 ]; then
+        echo 10 > /sys/module/process_reclaim/parameters/pressure_min
+        echo 1024 > /sys/module/process_reclaim/parameters/per_swap_size
+        echo "14746,18432,22118,25805,40000,55000" > /sys/module/lowmemorykiller/parameters/minfree
+        echo 81250 > /sys/module/lowmemorykiller/parameters/vmpressure_file_min
+    elif [ "$arch_type" == "aarch64" ]; then
+        echo 50 > /sys/module/process_reclaim/parameters/pressure_min
+        echo 512 > /sys/module/process_reclaim/parameters/per_swap_size
+        echo "14746,18432,22118,25805,40000,55000" > /sys/module/lowmemorykiller/parameters/minfree
+        echo 81250 > /sys/module/lowmemorykiller/parameters/vmpressure_file_min
+    else
+        echo 50 > /sys/module/process_reclaim/parameters/pressure_min
+        echo 512 > /sys/module/process_reclaim/parameters/per_swap_size
+        echo "15360,19200,23040,26880,34415,43737" > /sys/module/lowmemorykiller/parameters/minfree
+        echo 53059 > /sys/module/lowmemorykiller/parameters/vmpressure_file_min
+    fi
+
+    configure_zram_parameters
+
+    SWAP_ENABLE_THRESHOLD=1048576
+    swap_enable=`getprop ro.vendor.qti.config.swap`
+
+    if [ -f /sys/devices/soc0/soc_id ]; then
+        soc_id=`cat /sys/devices/soc0/soc_id`
+    else
+        soc_id=`cat /sys/devices/system/soc/soc0/id`
+    fi
+
+    # Enable swap initially only for 1 GB targets
+    if [ "$MemTotal" -le "$SWAP_ENABLE_THRESHOLD" ] && [ "$swap_enable" == "true" ]; then
+        # Static swiftness
+        echo 1 > /proc/sys/vm/swap_ratio_enable
+        echo 70 > /proc/sys/vm/swap_ratio
+
+        # Swap disk - 200MB size
+        if [ ! -f /data/system/swap/swapfile ]; then
+            dd if=/dev/zero of=/data/system/swap/swapfile bs=1m count=200
+        fi
+        mkswap /data/system/swap/swapfile
+        swapon /data/system/swap/swapfile -p 32758
+    fi
+fi
+}
+
+function enable_memory_features()
+{
+    MemTotalStr=`cat /proc/meminfo | grep MemTotal`
+    MemTotal=${MemTotalStr:16:8}
+
+    if [ $MemTotal -le 2097152 ]; then
+        #Enable B service adj transition for 2GB or less memory
+        setprop ro.vendor.qti.sys.fw.bservice_enable true
+        setprop ro.vendor.qti.sys.fw.bservice_limit 5
+        setprop ro.vendor.qti.sys.fw.bservice_age 5000
+
+        #Enable Delay Service Restart
+        setprop ro.vendor.qti.am.reschedule_service true
+    fi
 }
 
 function start_hbtp()
@@ -112,14 +176,8 @@ case "$target" in
             hw_platform=`cat /sys/devices/system/soc/soc0/hw_platform`
         fi
 
-        if [ -f /sys/devices/soc0/platform_subtype_id ]; then
-            platform_subtype_id=`cat /sys/devices/soc0/platform_subtype_id`
-        fi
-
-        echo 0 > /proc/sys/kernel/sched_boost
-
         case "$soc_id" in
-            "293" | "304" | "338" | "351")
+            "293" | "304" | "338" )
 
                 # Start Host based Touch processing
                 case "$hw_platform" in
@@ -133,18 +191,28 @@ case "$target" in
                         ;;
                 esac
 
-                if [ $soc_id -eq "338" ]; then
-                    case "$hw_platform" in
-                        "QRD" )
-                            if [ $platform_subtype_id -eq "1" ]; then
-                               start_hbtp
-                            fi
-                            ;;
-                    esac
-                fi
+                #scheduler settings
+                echo 3 > /proc/sys/kernel/sched_window_stats_policy
+                echo 3 > /proc/sys/kernel/sched_ravg_hist_size
+                #task packing settings
+                echo 0 > /sys/devices/system/cpu/cpu0/sched_static_cpu_pwr_cost
+                echo 0 > /sys/devices/system/cpu/cpu1/sched_static_cpu_pwr_cost
+                echo 0 > /sys/devices/system/cpu/cpu2/sched_static_cpu_pwr_cost
+                echo 0 > /sys/devices/system/cpu/cpu3/sched_static_cpu_pwr_cost
+                echo 0 > /sys/devices/system/cpu/cpu4/sched_static_cpu_pwr_cost
+                echo 0 > /sys/devices/system/cpu/cpu5/sched_static_cpu_pwr_cost
+                echo 0 > /sys/devices/system/cpu/cpu6/sched_static_cpu_pwr_cost
+                echo 0 > /sys/devices/system/cpu/cpu7/sched_static_cpu_pwr_cost
 
                 #init task load, restrict wakeups to preferred cluster
                 echo 15 > /proc/sys/kernel/sched_init_task_load
+                # spill load is set to 100% by default in the kernel
+                echo 3 > /proc/sys/kernel/sched_spill_nr_run
+                # Apply inter-cluster load balancer restrictions
+                echo 1 > /proc/sys/kernel/sched_restrict_cluster_spill
+
+                # set sync wakee policy tunable
+                echo 1 > /proc/sys/kernel/sched_prefer_sync_wakee_to_waker
 
                 for devfreq_gov in /sys/class/devfreq/qcom,mincpubw*/governor
                 do
@@ -205,6 +273,29 @@ case "$target" in
                     echo 40 > $gpu_bimc_io_percent
                 done
 
+		# Configure DCC module to capture critical register contents when device crashes
+		for DCC_PATH in /sys/bus/platform/devices/*.dcc*
+		do
+			echo  0 > $DCC_PATH/enable
+			echo cap >  $DCC_PATH/func_type
+			echo sram > $DCC_PATH/data_sink
+			echo  1 > $DCC_PATH/config_reset
+
+			# Register specifies APC CPR closed-loop settled voltage for current voltage corner
+			echo 0xb1d2c18 1 > $DCC_PATH/config
+
+			# Register specifies SW programmed open-loop voltage for current voltage corner
+			echo 0xb1d2900 1 > $DCC_PATH/config
+
+			# Register specifies APM switch settings and APM FSM state
+			echo 0xb1112b0 1 > $DCC_PATH/config
+
+			# Register specifies CPR mode change state and also #online cores input to CPR HW
+			echo 0xb018798 1 > $DCC_PATH/config
+
+			echo  1 > $DCC_PATH/enable
+		done
+
                 # disable thermal & BCL core_control to update interactive gov settings
                 echo 0 > /sys/module/msm_thermal/core_control/enabled
                 for mode in /sys/devices/soc.0/qcom,bcl.*/mode
@@ -226,42 +317,21 @@ case "$target" in
                     echo -n enable > $mode
                 done
 
-                #scheduler settings
-                echo 3 > /proc/sys/kernel/sched_window_stats_policy
-                echo 3 > /proc/sys/kernel/sched_ravg_hist_size
+                # Switch TCP congestion control to westwood
+                echo westwood > /proc/sys/net/ipv4/tcp_congestion_control
 
-                #task packing settings
-                echo 0 > /sys/devices/system/cpu/cpu0/sched_static_cpu_pwr_cost
-                echo 0 > /sys/devices/system/cpu/cpu1/sched_static_cpu_pwr_cost
-                echo 0 > /sys/devices/system/cpu/cpu2/sched_static_cpu_pwr_cost
-                echo 0 > /sys/devices/system/cpu/cpu3/sched_static_cpu_pwr_cost
-                echo 0 > /sys/devices/system/cpu/cpu4/sched_static_cpu_pwr_cost
-                echo 0 > /sys/devices/system/cpu/cpu5/sched_static_cpu_pwr_cost
-                echo 0 > /sys/devices/system/cpu/cpu6/sched_static_cpu_pwr_cost
-                echo 0 > /sys/devices/system/cpu/cpu7/sched_static_cpu_pwr_cost
+                # Sound control (decrease / increase volume)
+                # -1 => 255
+                # headphone_gain: -10(246)/20
+                # speaker_gain: -10(246)/20
+                # mic_gain: -10(246)/20
+                # echo "0 0" > /sys/kernel/sound_control/headphone_gain
+                # echo 0 > /sys/kernel/sound_control/speaker_gain
+                # echo 0 > /sys/kernel/sound_control/mic_gain
 
-                # spill load is set to 100% by default in the kernel
-                echo 3 > /proc/sys/kernel/sched_spill_nr_run
-
-                # Apply inter-cluster load balancer restrictions
-                echo 1 > /proc/sys/kernel/sched_restrict_cluster_spill
-
-                # set sync wakee policy tunable
-                echo 1 > /proc/sys/kernel/sched_prefer_sync_wakee_to_waker
-
-                # default freq min/max, gov and i/o sched
-                echo 652800 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-                echo 1958400 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
-                echo \"interactive\" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-                echo cfq > /sys/block/mmcblk0/queue/scheduler
-
-                # gpu
-                echo 133000000 > /sys/class/kgsl/kgsl-3d0/devfreq/min_freq
-                echo 650000000 > /sys/class/kgsl/kgsl-3d0/devfreq/max_freq
-                echo 650000000 > /sys/class/kgsl/kgsl-3d0/max_gpuclk
-
-                #governor settings
+                # Governor settings
                 echo 1 > /sys/devices/system/cpu/cpu0/online
+                echo "interactive" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
                 echo "19000 1401600:39000" > /sys/devices/system/cpu/cpufreq/interactive/above_hispeed_delay
                 echo 85 > /sys/devices/system/cpu/cpufreq/interactive/go_hispeed_load
                 echo 20000 > /sys/devices/system/cpu/cpufreq/interactive/timer_rate
@@ -269,26 +339,20 @@ case "$target" in
                 echo 0 > /sys/devices/system/cpu/cpufreq/interactive/io_is_busy
                 echo "85 1401600:80" > /sys/devices/system/cpu/cpufreq/interactive/target_loads
                 echo 39000 > /sys/devices/system/cpu/cpufreq/interactive/min_sample_time
-                echo 40000 > /sys/devices/system/cpu/cpufreq/interactive/sampling_down_factor
-                echo 19 > /proc/sys/kernel/sched_upmigrate_min_nice
+                echo 652800 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
 
-                # Enable sched guided freq control
-                echo 1 > /sys/devices/system/cpu/cpufreq/interactive/use_sched_load
-                echo 1 > /sys/devices/system/cpu/cpufreq/interactive/use_migration_notif
-                echo 200000 > /proc/sys/kernel/sched_freq_inc_notify
-                echo 200000 > /proc/sys/kernel/sched_freq_dec_notify
+                ### CPU_INPUT_BOOST
+                # Only boost power cores
+                # echo "652800 1804800" > /sys/kernel/cpu_input_boost/ib_freqs
+                # Input boost duration
+                # echo 440 > /sys/kernel/cpu_input_boost/ib_duration_ms
+                # echo 1 > /sys/kernel/cpu_input_boost/enabled
 
-                # Bring up all cores online
-                echo 1 > /sys/devices/system/cpu/cpu1/online
-                echo 1 > /sys/devices/system/cpu/cpu2/online
-                echo 1 > /sys/devices/system/cpu/cpu3/online
-                echo 1 > /sys/devices/system/cpu/cpu4/online
-                echo 1 > /sys/devices/system/cpu/cpu5/online
-                echo 1 > /sys/devices/system/cpu/cpu6/online
-                echo 1 > /sys/devices/system/cpu/cpu7/online
 
-                # Enable low power modes
-                echo 0 > /sys/module/lpm_levels/parameters/sleep_disabled
+                # Don't put new tasks on the core which is 70% loaded
+                echo 70 > /proc/sys/kernel/sched_spill_load
+                # Migrate tasks to powerful cores when the load is above 70%
+                echo 80 > /proc/sys/kernel/sched_upmigrate
 
                 # re-enable thermal & BCL core_control now
                 echo 1 > /sys/module/msm_thermal/core_control/enabled
@@ -309,17 +373,45 @@ case "$target" in
                     echo -n enable > $mode
                 done
 
+                # Bring up all cores online
+                echo 1 > /sys/devices/system/cpu/cpu1/online
+                echo 1 > /sys/devices/system/cpu/cpu2/online
+                echo 1 > /sys/devices/system/cpu/cpu3/online
+                echo 1 > /sys/devices/system/cpu/cpu4/online
+                echo 1 > /sys/devices/system/cpu/cpu5/online
+                echo 1 > /sys/devices/system/cpu/cpu6/online
+                echo 1 > /sys/devices/system/cpu/cpu7/online
+
+                # Enable low power modes
+                echo 0 > /sys/module/lpm_levels/parameters/sleep_disabled
+
                 # SMP scheduler
-                echo 85 > /proc/sys/kernel/sched_upmigrate
-                echo 85 > /proc/sys/kernel/sched_downmigrate
+                echo 100 > /proc/sys/kernel/sched_upmigrate
+                echo 100 > /proc/sys/kernel/sched_downmigrate
+                echo 19 > /proc/sys/kernel/sched_upmigrate_min_nice
+
+                # Enable sched guided freq control
+                echo 1 > /sys/devices/system/cpu/cpufreq/interactive/use_sched_load
+                echo 1 > /sys/devices/system/cpu/cpufreq/interactive/use_migration_notif
+                echo 200000 > /proc/sys/kernel/sched_freq_inc_notify
+                echo 200000 > /proc/sys/kernel/sched_freq_dec_notify
 
                 # Set Memory parameters
                 configure_memory_parameters
+	;;
+	esac
+	;;
+esac
 
-		setprop sys.post_boot.parsed 1
-            ;;
-        esac
+# Post-setup services
+case "$target" in
+    "msm8937" | "msm8953")
+        echo 512 > /sys/block/mmcblk0/bdi/read_ahead_kb
+        echo 512 > /sys/block/mmcblk0/queue/read_ahead_kb
+        setprop sys.post_boot.parsed 1
+        start gamed
     ;;
+
 esac
 
 # Let kernel know our image version/variant/crm_version

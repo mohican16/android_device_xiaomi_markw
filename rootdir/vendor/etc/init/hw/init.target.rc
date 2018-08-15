@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
+# Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -28,7 +28,10 @@
 #
 
 on early-init
+    mkdir /firmware 0771 system system
+    mkdir /system 0777 root root
     symlink /data/tombstones /tombstones
+    mkdir /dsp 0771 media media
 
 on fs
     wait /dev/block/platform/soc/${ro.boot.bootdevice}
@@ -56,6 +59,8 @@ on post-fs-data
     mkdir /persist/data/sfs 0700 system system
     mkdir /persist/data/tz 0700 system system
     mkdir /persist/qti_fp 0700 system system
+    mkdir /data/misc/seemp 0700 system system
+    mkdir /data/misc/audio_pp 0771 media audio
 
 # Vibrator
     chown system system /sys/class/timed_output/vibrator/vtg_level
@@ -78,12 +83,12 @@ on post-fs-data
 mkdir /data/vendor/camera 0770 camera camera
 mkdir /data/misc/camera 0770 camera camera
 
-# Start camera server as daemon
+#start camera server as daemon
 service qcamerasvr /vendor/bin/mm-qcamera-daemon
     class late_start
     user camera
     group camera system inet input graphics
-    setenv LD_PRELOAD "libshim_c.so"
+    writepid /dev/cpuset/system-background/tasks
 
 # Start camera provider later for encrypted devices
 on property:vold.decrypt=trigger_restart_framework
@@ -95,12 +100,14 @@ service per_mgr /vendor/bin/pm-service
     user system
     group system
     ioprio rt 4
+    writepid /dev/cpuset/system-background/tasks
 
 service per_proxy /vendor/bin/pm-proxy
     class core
     user system
     group system
     disabled
+    writepid /dev/cpuset/system-background/tasks
 
 on property:init.svc.per_mgr=running
     start per_proxy
@@ -108,26 +115,11 @@ on property:init.svc.per_mgr=running
 on property:sys.shutdown.requested=*
     stop per_proxy
 
-on post-fs
-	write /sys/block/zram0/comp_algorithm lz4
-	write /proc/sys/vm/page-cluster 0
-
-on property:sys.boot_completed=1
-
-	# Set idle GPU to 133 Mhz
-	write /sys/class/kgsl/kgsl-3d0/default_pwrlevel 6
-    
-	# Set cpu-boost    
-	write /sys/module/cpu_boost/parameters/input_boost_freq "0:1036800"
-	write /sys/module/cpu_boost/parameters/input_boost_ms 1500
-	
-	# enable force fast charge
-	write /sys/kernel/fast_charge/force_fast_charge 1
-
 service qseecomd /vendor/bin/qseecomd
    class core
    user root
    group root
+   writepid /dev/cpuset/system-background/tasks
 
 service thermal-engine /vendor/bin/thermal-engine
    class main
@@ -137,6 +129,7 @@ service thermal-engine /vendor/bin/thermal-engine
    socket thermal-recv-passive-client stream 0666 system system
    socket thermal-send-rule stream 0660 system system
    group root
+   writepid /dev/cpuset/system-background/tasks
 
 service adsprpcd /vendor/bin/adsprpcd
    class main
@@ -154,12 +147,14 @@ service imsqmidaemon /vendor/bin/imsqmidaemon
     user system
     socket ims_qmid stream 0660 system radio
     group radio log diag
+    writepid /dev/cpuset/system-background/tasks
 
 service imsdatadaemon /vendor/bin/imsdatadaemon
     class main
     user system
     socket ims_datad stream 0660 system radio
     group system wifi radio inet log diag
+    writepid /dev/cpuset/system-background/tasks
     disabled
 
 on property:vendor.ims.QMI_DAEMON_STATUS=1
@@ -169,17 +164,19 @@ service ims_rtp_daemon /vendor/bin/ims_rtp_daemon
    class main
    user system
    group radio diag inet log
+   writepid /dev/cpuset/system-background/tasks
    disabled
 
-service vendor.imsrcsservice /vendor/bin/imsrcsd
+service imsrcsservice /vendor/bin/imsrcsd
    class main
    user system
    group radio diag inet log
+   writepid /dev/cpuset/system-background/tasks
    disabled
 
 on property:vendor.ims.DATA_DAEMON_STATUS=1
    start ims_rtp_daemon
-   start vendor.imsrcsservice
+   start imsrcsservice
 
 on property:init.svc.surfaceflinger=stopped
     stop ppd
