@@ -124,7 +124,7 @@
     <integer name="config_defaultNotificationLedOff">2000</integer>
 
     <!-- True for enable AOD -->
-    <bool name="alwaysOnAvailable">true</bool>
+    <bool name="config_dozeAlwaysOnDisplayAvailable">true</bool>
 
     <!-- When true use the linux /dev/input/event subsystem to detect the switch changes
          on the headphone/microphone jack. When false use the older uevent framework. -->
