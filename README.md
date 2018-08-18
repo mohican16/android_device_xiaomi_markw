@@ -1,4 +1,4 @@
-Copyright 2017 - LineageOS
+Copyright 2017-2018 - LineageOS
 
 # Device Tree for Xiaomi Redmi 4 Prime/wt88553 (MARKW) 
 
