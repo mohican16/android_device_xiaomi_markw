@@ -12,20 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-$(call inherit-product, device/xiaomi/markw/full_markw.mk)
-
-# Inherit some common MDroid stuff.
-$(call inherit-product, vendor/mdroid/config/common_full_phone.mk)
-
-PRODUCT_NAME := mdroid_markw
-BOARD_VENDOR := Xiaomi
-
-PRODUCT_GMS_CLIENTID_BASE := android-xiaomi
-
-PRODUCT_BUILD_PROP_OVERRIDES += \
-    PRODUCT_NAME=markw \
-    PRIVATE_BUILD_DESC="markw-user 6.0.1 MMB29M V9.6.1.0.MBEMIFA release-keys"
-
-BUILD_FINGERPRINT := Xiaomi/markw/markw:6.0.1/MMB29M/V9.6.1.0.MBEMIFA:user/release-keys
+PRODUCT_MAKEFILES := \
+    $(LOCAL_DIR)/arrow_markw.mk

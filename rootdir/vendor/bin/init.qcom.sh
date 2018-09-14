@@ -170,6 +170,10 @@ if [ ! -f /firmware/verinfo/ver_info.txt -o "$prev_version_info" != "$cur_versio
 fi
 cp /firmware/image/modem_pr/mbn_ota.txt /data/vendor/radio/modem_config
 chown radio.radio /data/vendor/radio/modem_config/mbn_ota.txt
+cp /firmware/image/modem_pr/mbn_oin.txt /data/misc/radio/modem_config
+chown radio.radio /data/misc/radio/modem_config/mbn_oin.txt
+cp /firmware/image/modem_pr/mbn_ogl.txt /data/misc/radio/modem_config
+chown radio.radio /data/misc/radio/modem_config/mbn_ogl.txt
 echo 1 > /data/vendor/radio/copy_complete
 
 #check build variant for printk logging
@@ -185,3 +189,8 @@ case "$buildvariant" in
         echo "4 4 1 4" > /proc/sys/kernel/printk
         ;;
 esac
+
+if [ -f /data/system/users/0/settings_global.xml ]; then
+    sed -i 's/"multi_sim_data_call" value="1"/"multi_sim_data_call" value="-1"/g' /data/system/users/0/settings_global.xml
+    restorecon /data/system/users/0/settings_global.xml
+fi

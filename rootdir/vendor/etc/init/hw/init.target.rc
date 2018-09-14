@@ -56,6 +56,8 @@ on post-fs-data
     mkdir /persist/data/sfs 0700 system system
     mkdir /persist/data/tz 0700 system system
     mkdir /persist/qti_fp 0700 system system
+    mkdir /data/misc/seemp 0700 system system
+    mkdir /data/misc/audio_pp 0771 media audio
 
 # Vibrator
     chown system system /sys/class/timed_output/vibrator/vtg_level
@@ -64,15 +66,6 @@ on post-fs-data
     chmod 0644 /sys/class/timed_output/vibrator/vtg_level
     chmod 0644 /sys/class/timed_output/vibrator/vtg_max
     chmod 0644 /sys/class/timed_output/vibrator/vtg_min
-
-   # Add a cpuset for the camera daemon
-   # We want all cores for camera
-    mkdir /dev/cpuset/camera-daemon
-    write /dev/cpuset/camera-daemon/cpus 0-7
-    write /dev/cpuset/camera-daemon/mems 0
-    chown system system /dev/cpuset/camera-daemon
-    chown system system /dev/cpuset/camera-daemon/tasks
-    chmod 0664 /dev/cpuset/camera-daemon/tasks
 
 #Create folder for mm-qcamera-daemon
 mkdir /data/vendor/camera 0770 camera camera
@@ -83,6 +76,7 @@ service qcamerasvr /vendor/bin/mm-qcamera-daemon
     class late_start
     user camera
     group camera system inet input graphics
+    setenv LD_PRELOAD "libshims_qcamera-daemon.so"
 
 # Start camera provider later for encrypted devices
 on property:vold.decrypt=trigger_restart_framework
@@ -197,14 +191,25 @@ on charger
     write /sys/devices/system/cpu/cpu2/online 0
     write /sys/devices/system/cpu/cpu3/online 0
     write /sys/module/lpm_levels/parameters/sleep_disabled 0
-    wait /dev/block/bootdevice/by-name/system
-    mount ext4 /dev/block/bootdevice/by-name/system /system ro barrier=1
     start hvdcp_opti
+    start thermal-engine
 
 on boot
 	write /dev/cpuset/top-app/cpus 0-7
+	write /dev/cpuset/top-app/boost/cpus 4-7
+	write /dev/cpuset/foreground/cpus 0-6
+	write /dev/cpuset/foreground/boost/cpus 0-6
 	write /dev/cpuset/background/cpus 0-1
 	write /dev/cpuset/system-background/cpus 0-3
+
+	# add a cpuset for the camera daemon
+	# we want all cores for camera
+	mkdir /dev/cpuset/camera-daemon
+	write /dev/cpuset/camera-daemon/cpus 0-3
+	write /dev/cpuset/camera-daemon/mems 0
+	chown system system /dev/cpuset/camera-daemon
+	chown system system /dev/cpuset/camera-daemon/tasks
+	chmod 0664 /dev/cpuset/camera-daemon/tasks
 
 service ppd /vendor/bin/mm-pp-dpps
     class late_start

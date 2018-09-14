@@ -21,8 +21,6 @@
 #include <hardware/hardware.h>
 #include <hardware/fingerprint.h>
 #include <hardware/hw_auth_token.h>
-#include <keystore/IKeystoreService.h>
-#include <keystore/keystore.h> // for error codes
 #include <utils/Log.h>
 
 #include "FingerprintDaemonProxy.h"
@@ -46,61 +44,7 @@ void FingerprintDaemonProxy::hal_notify_callback(const fingerprint_msg_t *msg) {
         ALOGE("Invalid callback object");
         return;
     }
-    const int64_t device = (int64_t) instance->mDevice;
-    switch (msg->type) {
-        case FINGERPRINT_ERROR:
-            callback->onError(device, msg->data.error);
-            break;
-        case FINGERPRINT_ACQUIRED:
-            callback->onAcquired(device, msg->data.acquired.acquired_info);
-            break;
-        case FINGERPRINT_AUTHENTICATED:
-            if (msg->data.authenticated.finger.fid != 0) {
-                const uint8_t* hat = reinterpret_cast<const uint8_t *>(&msg->data.authenticated.hat);
-                instance->notifyKeystore(hat, sizeof(msg->data.authenticated.hat));
-            }
-            callback->onAuthenticated(device,
-                    msg->data.authenticated.finger.fid,
-                    msg->data.authenticated.finger.gid);
-            break;
-        case FINGERPRINT_TEMPLATE_ENROLLING:
-            callback->onEnrollResult(device,
-                    msg->data.enroll.finger.fid,
-                    msg->data.enroll.finger.gid,
-                    msg->data.enroll.samples_remaining);
-            break;
-        case FINGERPRINT_TEMPLATE_REMOVED:
-            callback->onRemoved(device,
-                    msg->data.removed.finger.fid,
-                    msg->data.removed.finger.gid);
-            break;
-        case FINGERPRINT_TEMPLATE_ENUMERATING:
-            callback->onEnumerate(device,
-                    msg->data.enumerated.finger.fid,
-                    msg->data.enumerated.finger.gid,
-                    msg->data.enumerated.remaining_templates);
-            break;
-        default:
-            ALOGE("invalid msg type: %d", msg->type);
-            return;
-    }
-}
-
-void FingerprintDaemonProxy::notifyKeystore(const uint8_t *auth_token, const size_t auth_token_length) {
-    if (auth_token != NULL && auth_token_length > 0) {
-        // TODO: cache service?
-        sp < IServiceManager > sm = defaultServiceManager();
-        sp < IBinder > binder = sm->getService(String16("android.security.keystore"));
-        sp < IKeystoreService > service = interface_cast < IKeystoreService > (binder);
-        if (service != NULL) {
-            status_t ret = service->addAuthToken(auth_token, auth_token_length);
-            if (ret != (int)ResponseCode::NO_ERROR) {
-                ALOGE("Falure sending auth token to KeyStore: %d", ret);
-            }
-        } else {
-            ALOGE("Unable to communicate with KeyStore");
-        }
-    }
+    callback->notifyCallback(msg);
 }
 
 void FingerprintDaemonProxy::init(const sp<IFingerprintDaemonCallback>& callback) {

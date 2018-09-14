@@ -1,10 +1,43 @@
-LOCAL_PATH := $(call my-dir)
+VNDK_SP_LIBRARIES := \
+    android.hardware.graphics.allocator@2.0 \
+    android.hardware.graphics.common@1.0 \
+    android.hardware.graphics.mapper@2.0 \
+    android.hardware.renderscript@1.0 \
+    android.hidl.memory@1.0 \
+    libRSCpuRef \
+    libRSDriver \
+    libRS_internal \
+    libbacktrace \
+    libbase \
+    libbcinfo \
+    libblas \
+    libc++ \
+    libcompiler_rt \
+    libcutils \
+    libft2 \
+    libhardware \
+    libhidlbase \
+    libhidlmemory \
+    libhidltransport \
+    libhwbinder \
+    libion \
+    liblzma \
+    libpng \
+    libunwind \
+    libutils \
+    libz
 
-include $(LOCAL_PATH)/vndk-sp-libs.mk
+EXTRA_VENDOR_LIBRARIES := \
+    android.hidl.base@1.0 \
+    android.hidl.manager@1.0 \
+    vendor.display.color@1.0 \
+    vendor.display.config@1.0
+
 
 #-------------------------------------------------------------------------------
 # VNDK Modules
 #-------------------------------------------------------------------------------
+LOCAL_PATH := $(call my-dir)
 
 define define-vndk-lib
 include $$(CLEAR_VARS)
@@ -39,11 +72,12 @@ endif  # TARGET_2ND_ARCH is not empty
 endef
 
 $(foreach lib,$(VNDK_SP_LIBRARIES),\
-    $(eval $(call define-vndk-lib,$(lib),vndk-sp-gen,vndk-sp,)))
+    $(eval $(call define-vndk-lib,$(lib),vndk-sp-gen,vndk-sp-28,)))
 $(foreach lib,$(VNDK_SP_EXT_LIBRARIES),\
     $(eval $(call define-vndk-lib,$(lib),vndk-sp-ext-gen,vndk-sp,true)))
 $(foreach lib,$(EXTRA_VENDOR_LIBRARIES),\
     $(eval $(call define-vndk-lib,$(lib),vndk-ext-gen,,true)))
+
 
 #-------------------------------------------------------------------------------
 # Phony Package
@@ -57,3 +91,4 @@ LOCAL_REQUIRED_MODULES := \
     $(addsuffix .vndk-sp-ext-gen,$(VNDK_SP_EXT_LIBRARIES)) \
     $(addsuffix .vndk-ext-gen,$(EXTRA_VENDOR_LIBRARIES))
 include $(BUILD_PHONY_PACKAGE)
+
