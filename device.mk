@@ -135,7 +135,8 @@ PRODUCT_PACKAGES += \
 
 # Camera shim
 PRODUCT_PACKAGES += \
-    libshims_qcamera-daemon
+    libshims_qcamera-daemon \
+    libshim_mutexdestroy
 
 # Configstore
 PRODUCT_PACKAGES += \
