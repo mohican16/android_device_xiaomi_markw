@@ -59,7 +59,7 @@ fingerprint_device_t* getWrapperService(fingerprint_notify_t notify) {
                 ALOGE("getService succeed");
                 sp<FingerprintDaemonCallbackProxy> callback =
                         new FingerprintDaemonCallbackProxy();
-                FingerprintDaemonCallbackProxy::setCallback(notify);
+                FingerprintDaemonCallbackProxy::setDevice(notify);
                 g_service->init(callback);
 
                 ret = g_service->openHal();
