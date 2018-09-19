@@ -131,7 +131,7 @@ PRODUCT_PACKAGES += \
     camera.device@3.2-impl \
     camera.msm8953 \
     libmm-qcamera \
-    Snap
+    SnapdragonCamera
 
 # Camera shim
 PRODUCT_PACKAGES += \
