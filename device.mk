@@ -131,6 +131,7 @@ PRODUCT_PACKAGES += \
     camera.device@3.2-impl \
     camera.msm8953 \
     libmm-qcamera \
+    libgui_vendor \
     SnapdragonCamera
 
 # Camera shim
