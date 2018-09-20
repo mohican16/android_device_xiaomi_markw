@@ -132,7 +132,7 @@ PRODUCT_PACKAGES += \
     camera.msm8953 \
     libmm-qcamera \
     libgui_vendor \
-    SnapdragonCamera2
+    SnapdragonCamera
 
 # Camera shim
 PRODUCT_PACKAGES += \
