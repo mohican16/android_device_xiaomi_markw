@@ -356,6 +356,6 @@
          config to 7. -->
     <integer name="config_deviceHardwareKeys">71</integer>
 
-    <bool name="config_button_brightness_support">true</bool>
-    <integer name="config_button_brightness_default">255</integer>
+    <bool name="config_button_brightness_support">false</bool>
+    <integer name="config_button_brightness_default">0</integer>
 </resources>
