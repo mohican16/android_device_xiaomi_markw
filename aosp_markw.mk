@@ -19,6 +19,9 @@ $(call inherit-product, device/xiaomi/markw/full_markw.mk)
 # Inherit some common aosp stuff.
 $(call inherit-product, vendor/aosp/common.mk)
 
+# Boot animation res
+TARGET_BOOT_ANIMATION_RES := 1080
+
 PRODUCT_NAME := aosp_markw
 BOARD_VENDOR := Xiaomi
 
