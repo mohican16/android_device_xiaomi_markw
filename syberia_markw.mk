@@ -21,15 +21,18 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 # Inherit from markw device
 $(call inherit-product, device/xiaomi/markw/device.mk)
 
-# Inherit some common Arrow stuff.
-$(call inherit-product, vendor/arrow/config/common.mk)
+#Boot Animation res
+TARGET_BOOT_ANIMATION_RES := 1080
+
+# Inherit some common Syberia stuff.
+$(call inherit-product, vendor/syberia/common.mk)
 
 # Device identifier. This must come after all inclusions
 PRODUCT_BRAND := Xiaomi
 PRODUCT_MODEL := Redmi 4 Prime
 PRODUCT_DEVICE := markw
 PRODUCT_MANUFACTURER := Xiaomi
-PRODUCT_NAME := arrow_markw
+PRODUCT_NAME := syberia_markw
 
 PRODUCT_GMS_CLIENTID_BASE := android-xiaomi
 
