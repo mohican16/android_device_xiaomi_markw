@@ -14,6 +14,7 @@
      limitations under the License.
 -->
 <resources>
+    <string name="summary_empty" translatable="false"></string>
     <string name="app_name">Xiaomi</string>
     <string name="advanced_settings">Advanced</string>
     <string name="category_vibrator">Vibrator</string>
