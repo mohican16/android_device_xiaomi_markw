@@ -27,9 +27,9 @@ INITIAL_COPYRIGHT_YEAR=2018
 MY_DIR="${BASH_SOURCE%/*}"
 if [[ ! -d "$MY_DIR" ]]; then MY_DIR="$PWD"; fi
 
-MDROID_ROOT="$MY_DIR"/../../..
+SYBERIA_ROOT="$MY_DIR"/../../..
 
-HELPER="$MDROID_ROOT"/vendor/mdroid/build/tools/extract_utils.sh
+HELPER="$SYBERIA_ROOT"/vendor/syberia/build/tools/extract_utils.sh
 if [ ! -f "$HELPER" ]; then
     echo "Unable to find helper script at $HELPER"
     exit 1
@@ -37,7 +37,7 @@ fi
 . "$HELPER"
 
 # Initialize the helper
-setup_vendor "$DEVICE" "$VENDOR" "$MDROID_ROOT"
+setup_vendor "$DEVICE" "$VENDOR" "$SYBERIA_ROOT"
 
 # Copyright headers and guards
 write_headers
@@ -45,7 +45,6 @@ write_headers
 write_makefiles "$MY_DIR"/proprietary-files.txt
 echo "" >> "$PRODUCTMK"
 write_makefiles "$MY_DIR"/proprietary-files-qc.txt
-write_makefiles "$MY_DIR"/1.txt
 
 # Finish
 write_footers
